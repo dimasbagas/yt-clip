@@ -1,5 +1,4 @@
-# ClipOS Installer Script — Production Distribution
-# This script installs the pre-built ClipOS executable for end users
+# ClipOS Production Web Installer & Local Installer
 $ErrorActionPreference = "Stop"
 
 Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -10,57 +9,111 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 
 $InstallDir = "$env:USERPROFILE\AppData\Local\Programs\ClipOS"
-$SourceDir = "$PSScriptRoot\dist\clipos"
+$ReleaseZipUrl = "https://github.com/dimasbagas/yt-clip/releases/download/v0.1.0/ClipOS-v0.1.0-Windows.zip"
 
-# Fallback paths for different distribution scenarios
-if (-not (Test-Path $SourceDir)) {
-    $SourceDir = "$PSScriptRoot\clipos"
+# 1. Determine Source (Local directory vs. Remote Web download)
+$LocalSourceDir = "$PSScriptRoot\dist\clipos"
+if (-not (Test-Path $LocalSourceDir)) {
+    $LocalSourceDir = "$PSScriptRoot\clipos"
 }
 
-if (-not (Test-Path "$SourceDir\clipos.exe")) {
-    Write-Host "  ✗ ClipOS executable not found!" -ForegroundColor Red
-    Write-Host "  ✗ Expected location: $SourceDir\clipos.exe" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Make sure you have the complete ClipOS distribution package." -ForegroundColor Yellow
-    Write-Host ""
-    Read-Host "Press Enter to exit..."
-    Exit 1
+$IsWebInstall = $true
+$TempZip = "$env:TEMP\ClipOS_Download.zip"
+$TempExtract = "$env:TEMP\ClipOS_Extract"
+
+if ((Test-Path "$LocalSourceDir\clipos.exe") -and ($PSScriptRoot -ne "")) {
+    $IsWebInstall = $false
+    Write-Host "  ⚙ Local source detected. Installing from: $LocalSourceDir" -ForegroundColor Yellow
+} else {
+    Write-Host "  ⚙ Remote installation detected. Downloading from GitHub..." -ForegroundColor Cyan
 }
 
-# 1. Create installation directory
-Write-Host "  ⚙ Creating installation directory..." -ForegroundColor Cyan
+# 2. Prepare installation directory
+Write-Host "  ⚙ Preparing installation directory..." -ForegroundColor Cyan
 Write-Host "    Location: $InstallDir" -ForegroundColor Gray
 if (Test-Path $InstallDir) {
     Write-Host "    Removing existing installation..." -ForegroundColor Gray
     Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-Write-Host "    ✓ Directory created" -ForegroundColor Green
+Write-Host "    ✓ Directory ready" -ForegroundColor Green
 
-# 2. Copy executable and all dependencies
-Write-Host "  ⚙ Copying application files..." -ForegroundColor Cyan
-Write-Host "    This may take a moment..." -ForegroundColor Gray
-Copy-Item -Path "$SourceDir\*" -Destination $InstallDir -Recurse -Force
-Write-Host "    ✓ Files copied successfully" -ForegroundColor Green
+# 3. Get the files (Download from Web or Copy from Local)
+if ($IsWebInstall) {
+    Write-Host "  ⚙ Downloading ClipOS production bundle..." -ForegroundColor Cyan
+    Write-Host "    URL: $ReleaseZipUrl" -ForegroundColor Gray
+    
+    # Download the release ZIP in background
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $ReleaseZipUrl -OutFile $TempZip -UseBasicParsing
+        Write-Host "    ✓ Download complete!" -ForegroundColor Green
+    } catch {
+        Write-Host "  ✗ Failed to download release ZIP from GitHub!" -ForegroundColor Red
+        Write-Host "  ✗ Please make sure the release is uploaded to: $ReleaseZipUrl" -ForegroundColor Red
+        Write-Host "  ✗ Details: $_" -ForegroundColor Red
+        Read-Host "Press Enter to exit..."
+        Exit 1
+    }
+    
+    Write-Host "  ⚙ Extracting bundle..." -ForegroundColor Cyan
+    if (Test-Path $TempExtract) { Remove-Item $TempExtract -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $TempExtract -Force | Out-Null
+    
+    # Extract ZIP
+    Expand-Archive -Path $TempZip -DestinationPath $TempExtract -Force
+    
+    # Locate the compiled files in the extracted zip
+    $ExtractedSource = "$TempExtract\dist\clipos"
+    if (-not (Test-Path $ExtractedSource)) {
+        $ExtractedSource = "$TempExtract\clipos"
+    }
+    if (-not (Test-Path $ExtractedSource)) {
+        # Fallback to search for clipos.exe inside extracted structure
+        $FoundExe = Get-ChildItem -Path $TempExtract -Filter "clipos.exe" -Recurse | Select-Object -First 1
+        if ($FoundExe) {
+            $ExtractedSource = $FoundExe.Directory.FullName
+        }
+    }
+    
+    if (-not (Test-Path "$ExtractedSource\clipos.exe")) {
+        Write-Host "  ✗ Could not find clipos.exe in downloaded archive!" -ForegroundColor Red
+        Read-Host "Press Enter to exit..."
+        Exit 1
+    }
+    
+    Write-Host "  ⚙ Copying executable to program folder..." -ForegroundColor Cyan
+    Copy-Item -Path "$ExtractedSource\*" -Destination $InstallDir -Recurse -Force
+    Write-Host "    ✓ Copied successfully" -ForegroundColor Green
+    
+    # Cleanup temp download files
+    Remove-Item $TempZip -Force -ErrorAction SilentlyContinue
+    Remove-Item $TempExtract -Recurse -Force -ErrorAction SilentlyContinue
+} else {
+    Write-Host "  ⚙ Copying local application files..." -ForegroundColor Cyan
+    Copy-Item -Path "$LocalSourceDir\*" -Destination $InstallDir -Recurse -Force
+    Write-Host "    ✓ Copied successfully" -ForegroundColor Green
+}
 
-# 3. Create working directories
-Write-Host "  ⚙ Creating working directories..." -ForegroundColor Cyan
+# 4. Create working directories
+Write-Host "  ⚙ Creating program working directories..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Path "$InstallDir\exports" -Force | Out-Null
 New-Item -ItemType Directory -Path "$InstallDir\temp" -Force | Out-Null
-Write-Host "    ✓ Directories created" -ForegroundColor Green
+Write-Host "    ✓ Working directories ready" -ForegroundColor Green
 
-# 4. Add to User Environment PATH
-Write-Host "  ⚙ Registering in Environment PATH..." -ForegroundColor Cyan
+# 5. Add to User Environment PATH
+Write-Host "  ⚙ Registering in User PATH environment..." -ForegroundColor Cyan
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*ClipOS*") {
     $NewPath = "$UserPath;$InstallDir"
     [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
-    Write-Host "    ✓ Added to PATH (restart terminal to use 'clipos' command)" -ForegroundColor Green
+    Write-Host "    ✓ Added to Environment PATH!" -ForegroundColor Green
+    Write-Host "    ℹ Please RESTART your PowerShell terminal to load 'clipos' command." -ForegroundColor Yellow
 } else {
     Write-Host "    ✓ Already registered in PATH" -ForegroundColor Green
 }
 
-# 5. Create Desktop Shortcut
+# 6. Create Desktop Shortcut
 Write-Host "  ⚙ Creating Desktop Shortcut..." -ForegroundColor Cyan
 try {
     $WshShell = New-Object -ComObject WScript.Shell
@@ -76,12 +129,12 @@ try {
     Write-Host "    ⚠ Could not create shortcut: $_" -ForegroundColor Yellow
 }
 
-# 6. Verify installation
+# 7. Verification
 Write-Host "  ⚙ Verifying installation..." -ForegroundColor Cyan
 if (Test-Path "$InstallDir\clipos.exe") {
-    Write-Host "    ✓ Installation verified successfully" -ForegroundColor Green
+    Write-Host "    ✓ Installation verified successfully!" -ForegroundColor Green
 } else {
-    Write-Host "    ✗ Installation verification failed" -ForegroundColor Red
+    Write-Host "    ✗ Verification failed! clipos.exe not found." -ForegroundColor Red
     Exit 1
 }
 
@@ -90,18 +143,12 @@ Write-Host "╔═════════════════════�
 Write-Host "║             ✓ INSTALLATION COMPLETED!                      ║" -ForegroundColor Green
 Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
-Write-Host "  📍 Installation Location:" -ForegroundColor Cyan
+Write-Host "  📍 Program Location:" -ForegroundColor Cyan
 Write-Host "     $InstallDir" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  🚀 How to Use:" -ForegroundColor Cyan
-Write-Host "     1. Open a new PowerShell or Command Prompt window" -ForegroundColor Gray
+Write-Host "  🚀 How to Launch:" -ForegroundColor Cyan
+Write-Host "     1. Close this window and open a NEW PowerShell or Command Prompt" -ForegroundColor Gray
 Write-Host "     2. Type: clipos interactive" -ForegroundColor Gray
-Write-Host "     3. Or double-click 'ClipOS' shortcut on your Desktop" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  📚 Available Commands:" -ForegroundColor Cyan
-Write-Host "     clipos import <file>              - Import local video" -ForegroundColor Gray
-Write-Host "     clipos youtube <url>              - Download from YouTube" -ForegroundColor Gray
-Write-Host "     clipos interactive                - Interactive guided mode" -ForegroundColor Gray
-Write-Host "     clipos --help                     - Show all commands" -ForegroundColor Gray
+Write-Host "     3. Or double-click the 'ClipOS' icon on your Desktop!" -ForegroundColor Gray
 Write-Host ""
 Read-Host "Press Enter to exit..."
