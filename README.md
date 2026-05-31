@@ -36,21 +36,28 @@ Berbeda dengan alat lain, ClipOS bekerja **100% secara lokal** di komputer Anda,
 
 ClipOS didistribusikan sebagai aplikasi mandiri yang tidak memerlukan instalasi Python di komputer target.
 
-### ⚙️ Cara Install
-1. Unduh folder rilis ClipOS.
-2. Buka **PowerShell** di folder tersebut.
-3. Jalankan perintah instalasi berikut:
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-   .\install.ps1
-   ```
-4. **Selesai!** Perintah `clipos` sekarang tersedia secara global di terminal Anda.
+### ⚙️ Cara Install (3 Langkah Mudah)
+
+1. **Download & Extract**
+   - Download file `ClipOS-v0.1.0-Windows.zip`
+   - Extract ke folder mana saja (misal: `C:\ClipOS`)
+
+2. **Double-Click Installer**
+   - Buka folder yang sudah di-extract
+   - Double-click file `INSTALL.bat`
+   - Tunggu sampai selesai
+
+3. **Selesai!**
+   - Buka PowerShell atau Command Prompt baru
+   - Ketik: `clipos interactive`
+   - Atau double-click shortcut "ClipOS" di Desktop
 
 ### 🗑️ Cara Uninstall
-Jika Anda ingin menghapus ClipOS sepenuhnya dari sistem:
-```powershell
-.\uninstall.ps1
-```
+Jika ingin menghapus ClipOS:
+1. Buka File Explorer
+2. Navigasi ke: `C:\Users\[YourUsername]\AppData\Local\Programs\ClipOS`
+3. Delete folder tersebut
+4. Delete shortcut "ClipOS" dari Desktop (jika ada)
 
 ---
 

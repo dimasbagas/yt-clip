@@ -23,6 +23,7 @@ mkdir "%TEMP_PACKAGE%"
 
 echo [2/4] Copying distribution files...
 xcopy /E /I /Y "dist\clipos" "%TEMP_PACKAGE%\dist\clipos" >nul
+copy /Y "INSTALL.bat" "%TEMP_PACKAGE%\" >nul
 copy /Y "install.ps1" "%TEMP_PACKAGE%\" >nul
 copy /Y "README.md" "%TEMP_PACKAGE%\" >nul
 copy /Y "DISTRIBUTION.md" "%TEMP_PACKAGE%\" >nul
